@@ -1,3 +1,4 @@
+#include <UbidotsEthernet.h>
 #include <SPI.h>
 #include <Ethernet.h>
 #include <SharpIR.h>
@@ -6,13 +7,33 @@
 #define IRPin A0
 #define model 1080
 
+
+/********************************
+ * Constants and objects
+ *******************************/
+/* Assigns the Ubidots parameters */
+/*char const * TOKEN = "BBFF-QgZk0lStvTL1YTlpzIMu2sdn9m0oUs"; // Assign your Ubidots TOKEN
+char const * DEVICE_LABEL = "arduino-uno"; // Assign the unique device label
+char const * VARIABLE_LABEL = "estado"; // Assign the unique variable label to get the last value*/
+
+
+/********************************
+ * Constants and objects
+ *******************************/
+/* Assigns the Ubidots parameters */
+char const * TOKEN = "BBFF-QgZk0lStvTL1YTlpzIMu2sdn9m0oUs"; // Assign your Ubidots TOKEN
+char const * VARIABLE_LABEL_1 = "temperature"; // Assign the unique variable label to send the data
+char const * VARIABLE_LABEL_2 = "proximity"; // Assign the unique variable label to send the data
+char const * VARIABLE_LABEL_3 = "pressure"; // Assign the unique variable label to send the data
+
+
 byte mac[] = { 0x00, 0xAA, 0xBB, 0xCC, 0xDE, 0x04 };
-byte ip[] = { 192, 168, 1, 166 }; //COLOQUE UMA FAIXA DE IP DISPONÍVEL DO SEU ROTEADOR. EX: 192.168.1.110  **** ISSO VARIA, NO MEU CASO É: 192.168.0.175
-byte gateway[] = {192, 168, 1, 254}; //GATEWAY DE CONEXÃO (ALTERE PARA O GATEWAY DO SEU ROTEADOR)
-byte subnet[] = {255, 255, 255, 0}; //MASCARA DE REDE (ALTERE PARA A SUA MÁSCARA DE REDE)
+byte ip[] = { 192, 168, 1, 166 }; 
+byte gateway[] = {192, 168, 1, 254}; 
+byte subnet[] = {255, 255, 255, 0}; 
 
 
-EthernetServer server(23); //PORTA EM QUE A CONEXÃO SERÁ FEITA
+EthernetServer server(23);
 boolean gotAMessage = false;
 
 int fsrAnalogPin = A1; // FSR is connected to analog 1
@@ -26,8 +47,11 @@ int sensorPin = A0;
 
 int led1 = 6;
 int led3 = 7;
-int led2 = 12;
+int led2 = 5;
 int reservado = 0;
+int temp = 0;
+
+Ubidots client(TOKEN);
 
 void setup()
 {    
@@ -57,7 +81,7 @@ void setup()
 
 void loop()
 {
-
+  Ethernet.maintain();
 
   fsrReading = analogRead(fsrAnalogPin);
   Serial.print("Analog reading = ");
@@ -71,13 +95,13 @@ void loop()
 
   
  // Parking Slot 1 IR & Led
- if (distance_cm > 10  && fsrReading < 10)       
+ if (distance_cm > 20  && fsrReading < 10)       
        {
          digitalWrite(led3, HIGH);
          digitalWrite(led2, LOW);
        }
 
- if (distance_cm < 10 && fsrReading > 10){   
+ if (distance_cm < 20 && fsrReading > 10){   
     if (reservado > 0){
       digitalWrite(led1,LOW);
     }
@@ -86,10 +110,15 @@ void loop()
   }
 
  if (reservado > 0){
-  digitalWrite(led1,HIGH)
+  digitalWrite(led1,HIGH);
+  digitalWrite(led3, LOW);
+  digitalWrite(led2, LOW);
  }
 
-
+  client.add(VARIABLE_LABEL_1, temp);
+  client.add(VARIABLE_LABEL_2, distance_cm);
+  client.add(VARIABLE_LABEL_3, fsrReading);
+  client.sendAll();
 
   
             
