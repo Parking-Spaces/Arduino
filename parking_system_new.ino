@@ -64,7 +64,7 @@ void setup() {
 }
 
 void loop() {
-  
+  delay(50);
   reserved = Firebase.getInt("reserved");
   Serial.println(reserved);
   
@@ -128,7 +128,7 @@ void loop() {
   }
 
  if (distance < 10 && fsrReading > 400){   
-    digitalWrite(led1,LOW);
+    //digitalWrite(led1,LOW);
     Firebase.setInt("reserved",2);
     reserved = Firebase.getInt("reserved");
     
