@@ -69,7 +69,7 @@ void loop() {
   Serial.println(reserved);
   
   if (Firebase.failed()) {
-   Serial.print("get bool failed:");
+   Serial.print("get int failed:");
    Serial.println(Firebase.error());  
   }
   
@@ -107,7 +107,6 @@ void loop() {
 
  if (distance > 10 && fsrReading < 400)       
        {
-         //digitalWrite(led1, LOW);
          digitalWrite(led3, HIGH);
          digitalWrite(led2, LOW);
          Firebase.setBool("occupied",false);
@@ -118,17 +117,17 @@ void loop() {
          Serial.println("-------------------------------------------------"); 
      }
 
-  if (reserved == 1){
+  if (reserved <= 1){
        digitalWrite(led1, LOW);
        Serial.println("LOW LOW LOW LOW LOW LWO"); 
   }
-  if (reserved == 2){
+  if (reserved > 1){
        digitalWrite(led1, HIGH);
        Serial.println("HIGH HIGH HIGH");
   }
 
  if (distance < 10 && fsrReading > 400){   
-    //digitalWrite(led1,LOW);
+
     Firebase.setInt("reserved",2);
     reserved = Firebase.getInt("reserved");
     
