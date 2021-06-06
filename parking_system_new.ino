@@ -1,125 +1,147 @@
-#include <UbidotsEthernet.h>
+#include <ESP8266WiFi.h>
+#include <FirebaseArduino.h>
 #include <SPI.h>
-#include <Ethernet.h>
-#include <SharpIR.h>
-
+#include <DHT.h>
 
 #define IRPin A0
 #define model 1080
+#define DHTPIN D3
+#define DHTTYPE DHT22
+#define FIREBASE_HOST "tester-ffb0b-default-rtdb.firebaseio.com"
+#define FIREBASE_AUTH "30IyAQP5DtaaoSnc0VRi4ATw4jvLHQkJok7PEv2Z"
+#define WIFI_SSID "MEO-2F41D0"
+#define WIFI_PASSWORD "Vc96rXJEXhCwJs"
 
 
-/********************************
- * Constants and objects
- *******************************/
-/* Assigns the Ubidots parameters */
-/*char const * TOKEN = "BBFF-QgZk0lStvTL1YTlpzIMu2sdn9m0oUs"; // Assign your Ubidots TOKEN
-char const * DEVICE_LABEL = "arduino-uno"; // Assign the unique device label
-char const * VARIABLE_LABEL = "estado"; // Assign the unique variable label to get the last value*/
+DHT dht(DHTPIN, DHTTYPE); //// Initialize DHT sensor for normal 16mhz Arduino
 
-
-/********************************
- * Constants and objects
- *******************************/
-/* Assigns the Ubidots parameters */
-char const * TOKEN = "BBFF-QgZk0lStvTL1YTlpzIMu2sdn9m0oUs"; // Assign your Ubidots TOKEN
-char const * VARIABLE_LABEL_1 = "temperature"; // Assign the unique variable label to send the data
-char const * VARIABLE_LABEL_2 = "proximity"; // Assign the unique variable label to send the data
-char const * VARIABLE_LABEL_3 = "pressure"; // Assign the unique variable label to send the data
-
-
-byte mac[] = { 0x00, 0xAA, 0xBB, 0xCC, 0xDE, 0x04 };
-byte ip[] = { 192, 168, 1, 166 }; 
-byte gateway[] = {192, 168, 1, 254}; 
-byte subnet[] = {255, 255, 255, 0}; 
-
-
-EthernetServer server(23);
-boolean gotAMessage = false;
-
-int fsrAnalogPin = A1; // FSR is connected to analog 1
+//Variables
+int chk;
+float hum;  //Stores humidity value
+float temp1; //Stores temperature value
+int fsrAnalogPin = A0; // FSR is connected to analog 1
 int fsrReading;      // the analog reading from the FSR resistor divider
 int distance_cm;
-
-SharpIR mySensor = SharpIR(IRPin, model);
-
 int sensorPin = A0;
+int fireStatus;
+
+int led1 = D6; //Amarelo
+int led3 = D7; //Verde
+int led2 = D8; //Vermelho
+int reserved;
+
+const int trigPin = D5;
+const int echoPin = D4;
+int duration, distance;
 
 
-int led1 = 6;
-int led3 = 7;
-int led2 = 5;
-int reservado = 0;
-int temp = 0;
-
-Ubidots client(TOKEN);
-
-void setup()
-{    
-    
-    Serial.begin(9600); 
-
-    while (!Serial) {
-      ;
-    }
-    Serial.println();
-    Serial.println("Trying to get an IP");
-    if (Ethernet.begin(mac) == 0) {
-      Serial.println("Failed to configure Ethernet Using DHCP");
-      Ethernet.begin(mac, ip, gateway, subnet);
-    }
-
-    Serial.println("IP check");
-
-    Serial.println();
-    server.begin();
-    
-     
-
-   
+void setup() {
+  Serial.begin(9600);
+  dht.begin();
+  pinMode(led1, OUTPUT);
+  pinMode(led2, OUTPUT);
+  pinMode(led3, OUTPUT);
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  
+  // connect to wifi.
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print("connecting");
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print(".");
+    delay(500);
+  }
+  Serial.println();
+  Serial.print("connected: ");
+  Serial.println(WiFi.localIP());
+  
+  Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
+  if (Firebase.failed()) {
+   Serial.print("ERROR FIREBASE:");
+   Serial.println(Firebase.error());  
+   return;
+  }
 }
 
+void loop() {
+  
+  reserved = Firebase.getInt("reserved");
+  Serial.println(reserved);
+  
+  if (Firebase.failed()) {
+   Serial.print("get bool failed:");
+   Serial.println(Firebase.error());  
+  }
+  
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
 
-void loop()
-{
-  Ethernet.maintain();
+  duration = pulseIn(echoPin, HIGH);
+  distance = (duration*.0343)/2;
 
+  hum = dht.readHumidity();
+  temp1= dht.readTemperature();
+
+  Serial.print("Temp: ");
+  Serial.print(temp1);
+  Serial.println(" Celsius");
+  
   fsrReading = analogRead(fsrAnalogPin);
-  Serial.print("Analog reading = ");
+  Serial.print("Pressure = ");
   Serial.println(fsrReading);
   
-  distance_cm = mySensor.distance();
+  if (temp1 > 45){
+    Firebase.setInt("temp",1);
+    if (Firebase.failed()) {
+           Serial.print("fail Temp");
+           Serial.println(Firebase.error());  
+        }
+  }
   
   Serial.print("distance  : ");
-  Serial.print(distance_cm);
+  Serial.print(distance);
   Serial.println(" cm");
 
-  
- // Parking Slot 1 IR & Led
- if (distance_cm > 20  && fsrReading < 10)       
+ if (distance > 10 && fsrReading < 400)       
        {
+         //digitalWrite(led1, LOW);
          digitalWrite(led3, HIGH);
          digitalWrite(led2, LOW);
-       }
+         Firebase.setBool("occupied",false);
+         if (Firebase.failed()) {
+           Serial.print("fail occupied");
+           Serial.println(Firebase.error());  
+          }
+         Serial.println("-------------------------------------------------"); 
+     }
 
- if (distance_cm < 20 && fsrReading > 10){   
-    if (reservado > 0){
-      digitalWrite(led1,LOW);
-    }
-    digitalWrite(led3, LOW);
-    digitalWrite(led2, HIGH);
+  if (reserved == 1){
+       digitalWrite(led1, LOW);
+       Serial.println("LOW LOW LOW LOW LOW LWO"); 
+  }
+  if (reserved == 2){
+       digitalWrite(led1, HIGH);
+       Serial.println("HIGH HIGH HIGH");
   }
 
- if (reservado > 0){
-  digitalWrite(led1,HIGH);
-  digitalWrite(led3, LOW);
-  digitalWrite(led2, LOW);
- }
+ if (distance < 10 && fsrReading > 400){   
+    digitalWrite(led1,LOW);
+    Firebase.setInt("reserved",2);
+    reserved = Firebase.getInt("reserved");
+    
+    Firebase.setBool("occupied",true);
+    if (Firebase.failed()) {
+         Serial.print("Failed occupied");
+         Serial.println(Firebase.error());  
+     }
+    digitalWrite(led3, LOW);
+    digitalWrite(led2, HIGH);
+    Serial.print("###################################################################### ");
+  }
 
-  client.add(VARIABLE_LABEL_1, temp);
-  client.add(VARIABLE_LABEL_2, distance_cm);
-  client.add(VARIABLE_LABEL_3, fsrReading);
-  client.sendAll();
 
-  
-            
+
 }
