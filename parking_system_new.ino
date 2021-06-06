@@ -9,8 +9,8 @@
 #define DHTTYPE DHT22
 #define FIREBASE_HOST "tester-ffb0b-default-rtdb.firebaseio.com"
 #define FIREBASE_AUTH "30IyAQP5DtaaoSnc0VRi4ATw4jvLHQkJok7PEv2Z"
-#define WIFI_SSID "MEO-2F41D0"
-#define WIFI_PASSWORD "Vc96rXJEXhCwJs"
+#define WIFI_SSID "SE2021"
+#define WIFI_PASSWORD ""
 
 
 DHT dht(DHTPIN, DHTTYPE); //// Initialize DHT sensor for normal 16mhz Arduino
@@ -64,7 +64,7 @@ void setup() {
 }
 
 void loop() {
-  delay(50);
+  delay(100);
   reserved = Firebase.getInt("reserved");
   Serial.println(reserved);
   
